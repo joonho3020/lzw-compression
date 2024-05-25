@@ -22,7 +22,7 @@ $(SNAPPY_INSTALL_DIR):
 $(SNAPPY_LIB): | $(SNAPPY_INSTALL_DIR) $(SNAPPY_BUILD_DIR)
 	cd $(SNAPPY_BUILD_DIR) && cmake .. && make -j8 && make DESTDIR=../../snappy-install install
 
-$(SNAPPY_CMD): $(SNAPPY_CMD).cc
+$(SNAPPY_CMD): $(SNAPPY_CMD).cc $(SNAPPY_LIB)
 	g++ -std=c++11 -o $@ $< -L$(SNAPPY_INSTALL_DIR)/usr/local/lib -l$(SNAPPY)
 
 .PHONY: clean
