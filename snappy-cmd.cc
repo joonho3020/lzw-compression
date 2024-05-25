@@ -27,5 +27,15 @@ int main(int argc, char** argv) {
   compressed_file.close();
 
 
+  for (auto i = 0; i < str_file.size(); i++) {
+    printf("%x, ", str_file.c_str()[i]);
+  }
+  printf("\n");
+
+  for (auto i = 0; i < compressed_str.size(); i++) {
+    printf("%x, ", compressed_str.c_str()[i]);
+  }
+  printf("\n");
+
   return 0;
 }
