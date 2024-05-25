@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Tuple
 import argparse
 import numpy as np
 
@@ -20,14 +20,24 @@ def slice(val: int, start: int, end: int) -> int:
   mask = (1 << nbits) - 1
   return (val >> start) & mask
 
+def varint_decoding(compressed_bytes: List[int]) -> Tuple[int, int]:
+  more_bytes = 1
+  idx = 0
+  ret = 0
+  while (more_bytes == 1):
+    more_bytes = slice(compressed_bytes[idx], 7, 7)
+    data = slice(compressed_bytes[idx], 0, 6)
+    ret += data << (idx * 7)
+    idx += 1
+  return (ret, idx)
+
 def snappy_decompress(compressed_bytes: List[int]) -> List[int]:
   decompressed_bytes: List[int] = list()
 
-  # Ignore preamble for now
   idx: int = 0
   while idx < len(compressed_bytes):
-    print(f'idx: {idx}')
     tag = compressed_bytes[idx]
+    print(f'idx: {idx} tag: {hex(tag)}')
     elem_type = slice(tag, 0, 1)
     upper_tag = slice(tag, 2, 7)
     # Literal
@@ -38,9 +48,11 @@ def snappy_decompress(compressed_bytes: List[int]) -> List[int]:
         idx += 1
       else:
         extra_bytes = (upper_tag - 60) + 1
+        print(f'extra_byte: {extra_bytes}')
         for x in range(extra_bytes):
           b = compressed_bytes[idx + x + 1]
           lit_len += b * (2**x)
+        lit_len += 1
         idx += (extra_bytes + 1)
       print(f'literal litlen: {lit_len} compressed_bytes: {compressed_bytes[idx:idx+lit_len]}')
       decompressed_bytes.extend(compressed_bytes[idx:idx+lit_len])
@@ -50,7 +62,8 @@ def snappy_decompress(compressed_bytes: List[int]) -> List[int]:
       # Copy with 1-byte offset
       if elem_type == 1:
         copy_len = slice(upper_tag, 0, 2) + 4
-        offset = (slice(upper_tag, 3, 7) << 8) + compressed_bytes[idx + 1]
+        print(f'bytes after tag {compressed_bytes[idx + 1]}')
+        offset = (slice(upper_tag, 3, 5) << 8) + compressed_bytes[idx + 1]
         idx += 2
       # Copy with 2-byte offset
       elif elem_type == 2:
@@ -71,7 +84,7 @@ def snappy_decompress(compressed_bytes: List[int]) -> List[int]:
         offset = 0
         assert(f'Unexpected elem_type {elem_type}')
 
-      print(f'copy offset: {offset} copy_len: {copy_len}')
+      print(f'elem_type: {elem_type} upper_tag: {upper_tag} copy offset: {offset} copy_len: {copy_len}')
       while copy_len > offset:
         copy_data = decompressed_bytes[-offset:]
         decompressed_bytes.extend(copy_data)
@@ -91,7 +104,10 @@ def main():
   print(compressed_bytes)
   print(raw_bytes)
 
-  decompressed = snappy_decompress(compressed_bytes[1:])
+  (uncomp_len, idx) = varint_decoding(compressed_bytes)
+  print(f'uncomp len {uncomp_len} idx {idx}')
+
+  decompressed = snappy_decompress(compressed_bytes[idx:])
   for (i, rb) in enumerate(raw_bytes):
     if decompressed[i] != rb:
       print(f'mismatch on byte {i} {decompressed[i]} != {rb}')
