@@ -3,11 +3,6 @@ from typing import List, Tuple
 import argparse
 import numpy as np
 
-parser = argparse.ArgumentParser(description='snappy decompressor')
-parser.add_argument('--comp-file', type=str, required=True, help='compressed input file')
-parser.add_argument('--raw-file', type=str, required=True, help='raw file')
-args = parser.parse_args()
-
 def read_file(file: Path) -> List[int]:
   output: List[int] = list()
   with open(file, 'r') as f:
@@ -97,17 +92,25 @@ def snappy_decompress(compressed_bytes: List[int]) -> List[int]:
       print(f'copy_data: {copy_data}')
   return decompressed_bytes
 
+def snappy_decompress_full(compressed_bytes: List[int]) -> List[int]:
+  (uncomp_len, idx) = varint_decoding(compressed_bytes)
+  print(f'uncomp len {uncomp_len} idx {idx}')
+  decompressed = snappy_decompress(compressed_bytes[idx:])
+  return decompressed
+
 def main():
+  parser = argparse.ArgumentParser(description='snappy decompressor')
+  parser.add_argument('--comp-file', type=str, required=True, help='compressed input file')
+  parser.add_argument('--raw-file', type=str, required=True, help='raw file')
+  args = parser.parse_args()
+
   compressed_bytes = read_file(Path(args.comp_file))
   raw_bytes = read_file(Path(args.raw_file))
 
   print(compressed_bytes)
   print(raw_bytes)
 
-  (uncomp_len, idx) = varint_decoding(compressed_bytes)
-  print(f'uncomp len {uncomp_len} idx {idx}')
-
-  decompressed = snappy_decompress(compressed_bytes[idx:])
+  decompressed = snappy_decompress_full(compressed_bytes)
   for (i, rb) in enumerate(raw_bytes):
     if decompressed[i] != rb:
       print(f'mismatch on byte {i} {decompressed[i]} != {rb}')
